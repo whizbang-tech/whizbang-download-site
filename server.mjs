@@ -101,7 +101,10 @@ export function createDownloadSiteServer({ readAsset = readFile } = {}) {
   });
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// `import.meta.main` survives the `current` release symlink used by launchd.
+// Comparing process.argv[1] with import.meta.url does not: Node resolves the
+// module to its physical release path while argv preserves the symlink path.
+if (import.meta.main) {
   const server = createDownloadSiteServer();
   server.listen(port, host, () => {
     console.log(`Whizbang download site listening on http://${host}:${port}/download`);
