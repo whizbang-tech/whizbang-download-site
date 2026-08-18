@@ -28,7 +28,9 @@ if ! dscl . -read "/Users/${service_user}" >/dev/null 2>&1; then
   dscl . -create "/Users/${service_user}" NFSHomeDirectory /var/empty
   dscl . -create "/Users/${service_user}" UserShell /usr/bin/false
   dscl . -create "/Users/${service_user}" IsHidden 1
-  dscl . -passwd "/Users/${service_user}" '*'
+  # A launchd-only account with /usr/bin/false needs no usable password.
+  # Avoid `dscl -passwd '*': recent macOS releases reject that placeholder
+  # under the local password-quality policy.
 fi
 
 install -d -o root -g wheel -m 0755 "${site_root}/releases"
