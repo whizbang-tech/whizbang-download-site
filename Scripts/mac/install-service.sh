@@ -14,7 +14,10 @@ readonly source_root="${0:A:h:h:h}"
 
 if ! dscl . -read "/Users/${service_user}" >/dev/null 2>&1; then
   readonly uid="349"
-  if dscl . -search /Users UniqueID "${uid}" >/dev/null 2>&1; then
+  # dscl returns success even when a search has no rows, so inspect its output
+  # rather than its exit status before claiming the dedicated UID is occupied.
+  existing_uid_user="$(dscl . -search /Users UniqueID "${uid}" 2>/dev/null || true)"
+  if [[ -n "${existing_uid_user}" ]]; then
     print -u2 "Refusing to create ${service_user}: UID ${uid} is already in use. Choose a new dedicated service UID."
     exit 1
   fi
