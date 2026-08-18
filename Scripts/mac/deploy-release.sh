@@ -18,12 +18,22 @@ test -d "${source_root}/public"
 node --check "${source_root}/server.mjs"
 node --check "${source_root}/public/app.js"
 
+if [[ -d "${release_root}" && ( ! -f "${release_root}/server.mjs" || ! -f "${release_root}/package.json" || ! -d "${release_root}/public" ) ]]; then
+  incomplete_root="${release_root}.incomplete.$(date +%Y%m%d%H%M%S)"
+  mv "${release_root}" "${incomplete_root}"
+  print "Quarantined incomplete release at ${incomplete_root}."
+fi
+
 if [[ ! -d "${release_root}" ]]; then
   install -d -o root -g wheel -m 0755 "${release_root}"
   ditto "${source_root}/public" "${release_root}/public"
   install -o root -g wheel -m 0644 "${source_root}/server.mjs" "${release_root}/server.mjs"
   install -o root -g wheel -m 0644 "${source_root}/package.json" "${release_root}/package.json"
 fi
+
+test -f "${release_root}/server.mjs"
+test -f "${release_root}/package.json"
+test -d "${release_root}/public"
 
 # macOS mv follows an existing symlink to a directory. Remove the old link
 # explicitly so the new link replaces it rather than landing inside its target.
