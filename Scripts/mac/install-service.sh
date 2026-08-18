@@ -10,6 +10,7 @@ readonly service_user="_whizbang_download"
 readonly site_root="/usr/local/whizbang-download-site"
 readonly log_root="/Library/Logs/Whizbang/download-site"
 readonly plist_path="/Library/LaunchDaemons/com.whizbang.download-site.plist"
+readonly service_label="com.whizbang.download-site"
 readonly source_root="${0:A:h:h:h}"
 
 if ! dscl . -read "/Users/${service_user}" >/dev/null 2>&1; then
@@ -37,6 +38,12 @@ install -d -o root -g wheel -m 0755 "${site_root}/releases"
 install -d -o "${service_user}" -g staff -m 0750 "${log_root}"
 install -o root -g wheel -m 0644 "${source_root}/deploy/com.whizbang.download-site.plist" "${plist_path}"
 plutil -lint "${plist_path}"
+
+if launchctl print "system/${service_label}" >/dev/null 2>&1; then
+  launchctl kickstart -k "system/${service_label}"
+else
+  launchctl bootstrap system "${plist_path}"
+fi
 
 print "Installed service account and LaunchDaemon. Deploy a release next with:"
 print "  sudo ${source_root}/Scripts/mac/deploy-release.sh"
