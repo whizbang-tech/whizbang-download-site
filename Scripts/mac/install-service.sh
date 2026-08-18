@@ -8,7 +8,7 @@ fi
 
 readonly service_user="_whizbang_download"
 readonly site_root="/usr/local/whizbang-download-site"
-readonly log_root="/Library/Logs/Whizbang/download-site"
+readonly log_root="/Library/Logs/WhizbangDownloadSite"
 readonly plist_path="/Library/LaunchDaemons/com.whizbang.download-site.plist"
 readonly service_label="com.whizbang.download-site"
 readonly source_root="${0:A:h:h:h}"
@@ -40,7 +40,8 @@ install -o root -g wheel -m 0644 "${source_root}/deploy/com.whizbang.download-si
 plutil -lint "${plist_path}"
 
 if launchctl print "system/${service_label}" >/dev/null 2>&1; then
-  launchctl kickstart -k "system/${service_label}"
+  launchctl bootout "system/${service_label}"
+  launchctl bootstrap system "${plist_path}"
 else
   launchctl bootstrap system "${plist_path}"
 fi

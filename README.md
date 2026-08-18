@@ -36,4 +36,4 @@ Scripts/mac/service-status.sh
 
 ## Rollback
 
-Point `/usr/local/whizbang-download-site/current` at a retained release directory and restart `system/com.whizbang.download-site`. Do not alter `api.whizbang.quest` or `mail.whizbang.quest` tunnel rules.
+Point `/usr/local/whizbang-download-site/current` at a retained release directory and restart `system/com.whizbang.download-site`. Service logs are kept independently at `/Library/Logs/WhizbangDownloadSite`. Do not alter `api.whizbang.quest` or `mail.whizbang.quest` tunnel rules.

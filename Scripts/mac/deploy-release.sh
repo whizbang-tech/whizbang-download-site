@@ -25,8 +25,10 @@ if [[ ! -d "${release_root}" ]]; then
   install -o root -g wheel -m 0644 "${source_root}/package.json" "${release_root}/package.json"
 fi
 
-ln -sfn "${release_root}" "${current_link}.next"
-mv -f "${current_link}.next" "${current_link}"
+# macOS mv follows an existing symlink to a directory. Remove the old link
+# explicitly so the new link replaces it rather than landing inside its target.
+rm -f "${current_link}"
+ln -s "${release_root}" "${current_link}"
 launchctl kickstart -k "system/${service_label}"
 
 for attempt in {1..20}; do

@@ -34,8 +34,8 @@
   <key>ProcessType</key>
   <string>Background</string>
   <key>StandardOutPath</key>
-  <string>/Library/Logs/Whizbang/download-site/stdout.log</string>
+  <string>/Library/Logs/WhizbangDownloadSite/stdout.log</string>
   <key>StandardErrorPath</key>
-  <string>/Library/Logs/Whizbang/download-site/stderr.log</string>
+  <string>/Library/Logs/WhizbangDownloadSite/stderr.log</string>
 </dict>
 </plist>
