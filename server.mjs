@@ -1,15 +1,17 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { extname, normalize, resolve } from "node:path";
+import { extname, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const moduleDirectory = fileURLToPath(new URL(".", import.meta.url));
 const publicDirectory = resolve(moduleDirectory, "public");
+const defaultMoReleaseDirectory = "/usr/local/whizbang-download-site/mo-releases";
 const host = process.env.WHIZBANG_DOWNLOAD_SITE_HOST ?? "127.0.0.1";
 const port = Number.parseInt(process.env.WHIZBANG_DOWNLOAD_SITE_PORT ?? "8091", 10);
 
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
+  ".dmg": "application/x-apple-diskimage",
   ".html": "text/html; charset=utf-8",
   ".ico": "image/x-icon",
   ".js": "text/javascript; charset=utf-8",
@@ -43,7 +45,19 @@ export function assetPathFor(requestPathname) {
   }
 
   if (!requestPathname.startsWith("/download/")) {
-    return null;
+    if (requestPathname === "/mo" || requestPathname === "/mo/") {
+      return "mo/index.html";
+    }
+
+    if (!requestPathname.startsWith("/mo/")) {
+      return null;
+    }
+
+    const moCandidate = normalize(requestPathname.slice("/mo/".length));
+    if (!moCandidate || moCandidate === "." || moCandidate.startsWith("..") || moCandidate.includes("\\")) {
+      return null;
+    }
+    return `mo/${moCandidate}`;
   }
 
   const candidate = normalize(requestPathname.slice("/download/".length));
@@ -53,7 +67,26 @@ export function assetPathFor(requestPathname) {
   return candidate;
 }
 
-export function createDownloadSiteServer({ readAsset = readFile } = {}) {
+function isInside(root, candidate) {
+  return candidate === root || candidate.startsWith(`${root}${sep}`);
+}
+
+function moReleaseAssetPath(requestPathname, releaseDirectory) {
+  if (requestPathname === "/mo/release.json") {
+    return resolve(releaseDirectory, "current", "release.json");
+  }
+
+  const match = requestPathname.match(/^\/mo\/releases\/([A-Za-z0-9._-]+)\/([A-Za-z0-9._-]+\.dmg)$/);
+  if (!match) return null;
+  return resolve(releaseDirectory, "releases", match[1], match[2]);
+}
+
+export function createDownloadSiteServer({
+  readAsset = readFile,
+  moReleaseDirectory = process.env.MO_PUBLIC_RELEASE_ROOT ?? defaultMoReleaseDirectory,
+} = {}) {
+  const resolvedMoReleaseDirectory = resolve(moReleaseDirectory);
+
   return createServer(async (request, response) => {
     const requestURL = new URL(request.url ?? "/", "http://localhost");
 
@@ -70,6 +103,45 @@ export function createDownloadSiteServer({ readAsset = readFile } = {}) {
       return;
     }
 
+    if (requestURL.pathname === "/mo/health") {
+      const body = JSON.stringify({ service: "whizbang-download-site", status: "ok", surface: "mo" });
+      response.writeHead(200, responseHeaders("application/json; charset=utf-8", "no-store"));
+      response.end(request.method === "HEAD" ? undefined : body);
+      return;
+    }
+
+    const releaseAssetPath = moReleaseAssetPath(requestURL.pathname, resolvedMoReleaseDirectory);
+    if (releaseAssetPath) {
+      if (!isInside(resolvedMoReleaseDirectory, releaseAssetPath)) {
+        response.writeHead(404, responseHeaders("text/plain; charset=utf-8", "no-store"));
+        response.end("Not found\n");
+        return;
+      }
+
+      try {
+        const asset = await readAsset(releaseAssetPath);
+        const isDiskImage = extname(releaseAssetPath) === ".dmg";
+        const headers = responseHeaders(
+          contentTypes[extname(releaseAssetPath)] ?? "application/octet-stream",
+          isDiskImage ? "public, max-age=31536000, immutable" : "no-store",
+        );
+        if (isDiskImage) {
+          headers["Content-Disposition"] = `attachment; filename="${releaseAssetPath.split(sep).at(-1)}"`;
+        }
+        response.writeHead(200, headers);
+        response.end(request.method === "HEAD" ? undefined : asset);
+      } catch (error) {
+        if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+          response.writeHead(404, responseHeaders("text/plain; charset=utf-8", "no-store"));
+          response.end("Not found\n");
+          return;
+        }
+        response.writeHead(500, responseHeaders("text/plain; charset=utf-8", "no-store"));
+        response.end("Unable to serve Mo release\n");
+      }
+      return;
+    }
+
     const assetPath = assetPathFor(requestURL.pathname);
     if (!assetPath) {
       response.writeHead(404, responseHeaders("text/plain; charset=utf-8", "no-store"));
@@ -78,7 +150,7 @@ export function createDownloadSiteServer({ readAsset = readFile } = {}) {
     }
 
     const resolvedAsset = resolve(publicDirectory, assetPath);
-    if (!resolvedAsset.startsWith(`${publicDirectory}/`) && resolvedAsset !== publicDirectory) {
+    if (!isInside(publicDirectory, resolvedAsset)) {
       response.writeHead(404, responseHeaders("text/plain; charset=utf-8", "no-store"));
       response.end("Not found\n");
       return;
@@ -107,6 +179,6 @@ export function createDownloadSiteServer({ readAsset = readFile } = {}) {
 if (import.meta.main) {
   const server = createDownloadSiteServer();
   server.listen(port, host, () => {
-    console.log(`Whizbang download site listening on http://${host}:${port}/download`);
+    console.log(`Whizbang download site listening on http://${host}:${port}/download and /mo`);
   });
 }

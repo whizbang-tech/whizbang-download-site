@@ -17,6 +17,7 @@ test -f "${source_root}/server.mjs"
 test -d "${source_root}/public"
 node --check "${source_root}/server.mjs"
 node --check "${source_root}/public/app.js"
+node --check "${source_root}/public/mo/mo.js"
 
 if [[ -d "${release_root}" && ( ! -f "${release_root}/server.mjs" || ! -f "${release_root}/package.json" || ! -d "${release_root}/public" ) ]]; then
   incomplete_root="${release_root}.incomplete.$(date +%Y%m%d%H%M%S)"
@@ -42,7 +43,8 @@ ln -s "${release_root}" "${current_link}"
 launchctl kickstart -k "system/${service_label}"
 
 for attempt in {1..20}; do
-  if curl --fail --silent --show-error "http://127.0.0.1:8091/download/health" >/dev/null; then
+  if curl --fail --silent --show-error "http://127.0.0.1:8091/download/health" >/dev/null \
+    && curl --fail --silent --show-error "http://127.0.0.1:8091/mo/health" >/dev/null; then
     print "Download site healthy on revision ${revision}."
     exit 0
   fi
