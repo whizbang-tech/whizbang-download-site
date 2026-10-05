@@ -1,39 +1,31 @@
-# Whizbang download site
+# Whizbang v3 download site
 
-The public first-install page for Whizbang at `https://whizbang.quest/download`.
+The Mo-branded first-install page for `https://whizbang.quest/download`. Requires **macOS 27 or later**.
 
-## What it does
+## Static hosting
 
-- serves a small static site from the Mac Studio on `127.0.0.1:8091`;
-- is published through a narrow Cloudflare Tunnel path rule;
-- asks GitHub's unauthenticated public Releases API for the current Whizbang DMG;
-- sends the visitor directly to the immutable GitHub Release asset;
-- falls back to the public releases page if GitHub metadata cannot be reached.
-
-GitHub Releases remains the only binary host. This service never receives a release token and never mirrors the DMG.
-
-## Local check
-
-```bash
-npm test
+```sh
 npm run check
-npm start
-curl http://127.0.0.1:8091/download/health
+npm run build
+npx wrangler pages deploy dist --project-name whizbang-download-site --branch main
 ```
 
-## Mac Studio installation
+`dist/download/` contains the self-contained page and approved Mo assets. `dist/_headers` applies CSP and security headers on Cloudflare Pages; `_redirects` maps the root to `/download/`. Deploy by direct upload, without automatic Git push builds. Configure the Pages custom domain only after reviewing existing whizbang.quest DNS and routes with Marshal. Cloudflare login/account access and DNS/tunnel cutover are separate live actions. API and mail subdomains must remain untouched. Static hosting removes the Mac Studio's availability from the installer path.
 
-From a checked-out, reviewed release:
+No v3 has been published by this source change. Until the `v3-stable` channel exists and passes identity checks, the page shows an unavailable state with a disabled download action. It never falls back to the retired native app.
 
-```bash
-sudo Scripts/mac/install-service.sh
-sudo Scripts/mac/deploy-release.sh
-sudo Scripts/mac/configure-cloudflare-ingress.sh
-Scripts/mac/service-status.sh
+## Release discovery
+
+The page reads `https://api.github.com/repos/whizbang-tech/whizbang-downloads/releases/tags/v3-stable` without credentials. That release's JSON body records the current verified v3 installer, version/build, minimum OS, bundle identity and SHA-256. Only `tech.whizbang.universal`, versions 3.x.y, builds >=14, macOS 27.0 and an exact immutable GitHub DMG URL are accepted. Release scripts in Whizbang publish these records after signing, notarization and anonymous checksum verification. Binary hosting remains GitHub Releases; the website holds no credentials or installer bytes.
+
+## Local preview
+
+```sh
+WHIZBANG_DOWNLOAD_SITE_PORT=18091 npm start
 ```
 
-`configure-cloudflare-ingress.sh` changes only the local tunnel configuration. It writes a timestamped backup and validates the candidate before restarting the tunnel. It intentionally does not edit Cloudflare WAF/Access policy; use a narrowly scoped allow rule for `whizbang.quest/download` only if the Cloudflare edge still returns 403.
+Open `http://127.0.0.1:18091/download`. The Node server is a local preview and historical service adapter, not a requirement for Cloudflare Pages. Existing historical Mac service/tunnel scripts remain for rollback reference; do not run them as part of static deployment.
 
-## Rollback
+## Brand provenance
 
-Point `/usr/local/whizbang-download-site/current` at a retained release directory and restart `system/com.whizbang.download-site`. Service logs are kept independently at `/Library/Logs/WhizbangDownloadSite`. Do not alter `api.whizbang.quest` or `mail.whizbang.quest` tunnel rules.
+`public/brand/` copies the approved Mo color mark, app icon and outlined wordmark from Whizbang `Brand/Whizbang`, source main 69e8012. Colors follow the approved palette: Warm Paper, Plum Ink, Mo Teal and Ember Coral. No system font file is redistributed.
